@@ -1,11 +1,13 @@
 "use client";
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
-const links = [
-  { href: "/", label: "Bus Schedules" },
+const publicLinks = [{ href: "/", label: "Bus Schedules" }];
+
+const adminLinks = [
   { href: "/buses", label: "Buses" },
   { href: "/routes", label: "Routes" },
   { href: "/schedules", label: "Manage Times" },
@@ -14,6 +16,8 @@ const links = [
 const PHONE_NUMBERS = "0307-4527954, 0306-4621289, 0300-8874559";
 const HELPLINE_TEL = "042111007008";
 const ANNOUNCEMENT = "Al Noor Travels we provide you the best services in the city";
+
+type AuthUser = { email: string; role: string } | null;
 
 function PhoneIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -41,6 +45,32 @@ function HeadsetIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<AuthUser>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (active) setUser(data.user ?? null);
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  const links = user?.role === "admin" ? [...publicLinks, ...adminLinks] : publicLinks;
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    router.replace("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-20 shadow-sm">
@@ -56,12 +86,26 @@ export function NavBar() {
             {ANNOUNCEMENT}
           </p>
 
-          <Link
-            href="/"
-            className="rounded px-2.5 py-1.5 font-medium tracking-wide transition hover:bg-white/10 hover:text-white"
-          >
-            Sign In
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-3">
+              <span className="hidden font-medium text-gold-400 sm:inline">
+                {user.email}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="rounded px-2.5 py-1.5 font-medium tracking-wide transition hover:bg-white/10 hover:text-white"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded px-2.5 py-1.5 font-medium tracking-wide transition hover:bg-white/10 hover:text-white"
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </div>
 

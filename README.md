@@ -1,9 +1,12 @@
-# Bus Transport Management System
+# Al Noor Travels - Bus Management System
 
-A simple, full-stack web app to manage your bus fleet:
+A full-stack web app to manage a bus service:
 
-- **Buses** — register each bus with its bus number, driver name, and route.
-- **Routes** — define city-to-city routes (e.g. `Nankana → Lahore`, `Faisalabad → Lahore`).
+- **Bus Schedules** (public) — anyone can pick a route and see scheduled bus
+  departures, earliest first.
+- **Buses** (admin) — register each bus with its bus number, driver, and route.
+- **Routes** (admin) — define city-to-city routes (e.g. `Nankana → Lahore`).
+- **Manage Times** (admin) — set departure times for buses on their routes.
 
 Built with **Next.js** (frontend + backend API in one project), **Prisma**, and
 **SQLite** locally / **PostgreSQL** in production. Designed to run and deploy on
@@ -11,11 +14,12 @@ free tiers.
 
 ## Tech stack
 
-| Layer    | Technology                                  |
-| -------- | ------------------------------------------- |
-| Frontend | Next.js (App Router) + React + Tailwind CSS |
-| Backend  | Next.js Route Handlers (`app/api/*`)        |
-| Database | Prisma ORM — SQLite (local), Postgres (prod)|
+| Layer    | Technology                                     |
+| -------- | ---------------------------------------------- |
+| Frontend | Next.js (App Router) + React + Tailwind CSS    |
+| Backend  | Next.js Route Handlers (`app/api/*`)           |
+| Database | Prisma ORM — SQLite (local), Postgres (prod)   |
+| Auth     | bcrypt password hashing + signed JWT (`jose`)  |
 
 ## Getting started (local)
 
@@ -25,46 +29,92 @@ Requires Node.js 18+.
 # 1. Install dependencies
 npm install
 
-# 2. Create the local database (SQLite) and tables
+# 2. Configure environment (copy the example and edit the values)
+cp .env.example .env
+#    - set AUTH_SECRET to a long random string:
+#        node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+#    - set ADMIN_EMAIL and ADMIN_PASSWORD
+
+# 3. Create the local database (SQLite) and tables
 npx prisma migrate dev
 
-# 3. Start the dev server
+# 4. Create the admin account from ADMIN_EMAIL / ADMIN_PASSWORD
+npm run db:seed
+
+# 5. Start the dev server
 npm run dev
 ```
 
-Open http://localhost:3000. The app uses a local SQLite file (`prisma/dev.db`)
-by default, so no external database is needed.
+Open http://localhost:3000. The public **Bus Schedules** page is the home page.
+Click **Sign In** and log in with your admin credentials to access the Buses,
+Routes, and Manage Times sections.
+
+## Authentication & authorization
+
+- **Public**: the home page and the read-only endpoints `GET /api/routes` and
+  `GET /api/schedules` (needed to display schedules).
+- **Admin only**: the `/buses`, `/routes`, and `/schedules` pages plus every
+  write endpoint and the buses listing.
+
+Security measures:
+
+- Passwords are stored only as **bcrypt** hashes (cost 12); the plaintext is
+  never persisted.
+- Sessions are **signed JWTs** (HS256 via `jose`) stored in an **HttpOnly**,
+  `SameSite=Lax` cookie (marked `Secure` in production), so the token is not
+  readable by JavaScript and is not sent on cross-site requests.
+- **Defense in depth**: `middleware.ts` guards admin pages, and every admin API
+  route independently re-checks the session with `requireAdmin()` — protection
+  never relies on hiding UI or on the middleware alone.
+- Login returns a generic "Invalid email or password" and always runs a bcrypt
+  comparison to limit user enumeration and timing leaks.
+
+To rotate the admin password, update `ADMIN_PASSWORD` in `.env` and re-run
+`npm run db:seed`.
 
 ## Project structure
 
 ```
 app/
-  layout.tsx           # shared layout + navigation
-  page.tsx             # Buses page (add + list)
-  routes/page.tsx      # Routes page (add + list)
+  layout.tsx                 # shared layout + navigation
+  page.tsx                   # public Bus Schedules viewer
+  login/page.tsx             # admin sign-in
+  buses/page.tsx             # (admin) manage buses
+  routes/page.tsx            # (admin) manage routes
+  schedules/page.tsx         # (admin) manage departure times
   api/
-    buses/route.ts     # GET (list) + POST (create) buses
-    buses/[id]/route.ts# DELETE a bus
-    routes/route.ts    # GET (list) + POST (create) routes
-    routes/[id]/route.ts# DELETE a route
-components/            # NavBar + reusable UI
-lib/prisma.ts          # Prisma client singleton
-prisma/schema.prisma   # data model (Route, Bus)
+    auth/login|logout|me     # session endpoints
+    buses/...                # buses CRUD (admin)
+    routes/...               # routes CRUD (GET public)
+    schedules/...            # schedules CRUD (GET public)
+components/                  # NavBar + reusable UI
+lib/prisma.ts                # Prisma client singleton
+lib/session.ts               # JWT sign/verify (edge-safe)
+lib/auth.ts                  # bcrypt + session helpers (node)
+middleware.ts                # route guard for admin pages
+prisma/schema.prisma         # data model (User, Route, Bus, Schedule)
+prisma/seed.js               # creates/updates the admin account
 ```
 
 ## API reference
 
-| Method | Endpoint          | Description                        |
-| ------ | ----------------- | ---------------------------------- |
-| GET    | `/api/routes`     | List all routes (with bus counts)  |
-| POST   | `/api/routes`     | Create a route `{fromCity, toCity}`|
-| DELETE | `/api/routes/:id` | Delete a route (and its buses)     |
-| GET    | `/api/buses`      | List all buses (with their route)  |
-| POST   | `/api/buses`      | Create a bus                       |
-| DELETE | `/api/buses/:id`  | Delete a bus                       |
+| Method | Endpoint             | Access | Description                          |
+| ------ | -------------------- | ------ | ------------------------------------ |
+| POST   | `/api/auth/login`    | public | Log in `{email, password}`           |
+| POST   | `/api/auth/logout`   | public | Clear the session                    |
+| GET    | `/api/auth/me`       | public | Current session user (or `null`)     |
+| GET    | `/api/routes`        | public | List routes (with bus counts)        |
+| POST   | `/api/routes`        | admin  | Create a route `{fromCity, toCity}`  |
+| DELETE | `/api/routes/:id`    | admin  | Delete a route (and its buses)       |
+| GET    | `/api/buses`         | admin  | List buses (with their route)        |
+| POST   | `/api/buses`         | admin  | Create a bus                         |
+| DELETE | `/api/buses/:id`     | admin  | Delete a bus                         |
+| GET    | `/api/schedules`     | public | List schedules (asc; `?routeId=`)    |
+| POST   | `/api/schedules`     | admin  | Create a schedule `{busId, time}`    |
+| DELETE | `/api/schedules/:id` | admin  | Delete a schedule                    |
 
 `POST /api/buses` accepts either an existing `routeId` or an inline
-`newRoute: { fromCity, toCity }`.
+`newRoute: { fromCity, toCity }`. `departureTime` is 24-hour `HH:MM`.
 
 ## Deploying for free (Vercel + Neon)
 
@@ -81,12 +131,13 @@ prisma/schema.prisma   # data model (Route, Bus)
 
 3. **Push your code to GitHub.**
 4. **Import the repo into [Vercel](https://vercel.com)** (free Hobby plan).
-5. In the Vercel project settings, add an environment variable
-   `DATABASE_URL` set to your Neon connection string.
-6. Apply the schema to the production database (run locally with the prod URL):
+5. In the Vercel project settings, add environment variables: `DATABASE_URL`,
+   `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+6. Apply the schema and seed the admin (run locally with the prod URL):
 
    ```bash
    DATABASE_URL="<your-neon-url>" npx prisma migrate deploy
+   DATABASE_URL="<your-neon-url>" npm run db:seed
    ```
 
 7. Deploy. The `build` script runs `prisma generate` automatically.
