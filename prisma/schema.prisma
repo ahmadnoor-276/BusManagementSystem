@@ -1,0 +1,35 @@
+// Prisma schema for the Bus Transport Management System.
+//
+// Local development uses SQLite (zero setup). For a free production deploy,
+// change `provider` to "postgresql" and point DATABASE_URL at a Neon/Supabase
+// database (see README.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Route {
+  id        String   @id @default(cuid())
+  fromCity  String
+  toCity    String
+  createdAt DateTime @default(now())
+
+  buses Bus[]
+
+  @@unique([fromCity, toCity])
+}
+
+model Bus {
+  id         String   @id @default(cuid())
+  busNumber  String   @unique
+  driverName String
+  createdAt  DateTime @default(now())
+
+  routeId String
+  route   Route  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
