@@ -13,3 +13,10 @@ export type Bus = {
   createdAt: string;
   route: Route;
 };
+
+export type Schedule = {
+  id: string;
+  departureTime: string;
+  createdAt: string;
+  bus: Bus;
+};

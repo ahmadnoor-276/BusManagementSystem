@@ -32,4 +32,17 @@ model Bus {
 
   routeId String
   route   Route  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  schedules Schedule[]
+}
+
+model Schedule {
+  id            String   @id @default(cuid())
+  departureTime String // 24-hour "HH:MM", zero-padded so it sorts chronologically
+  createdAt     DateTime @default(now())
+
+  busId String
+  bus   Bus    @relation(fields: [busId], references: [id], onDelete: Cascade)
+
+  @@unique([busId, departureTime])
 }
