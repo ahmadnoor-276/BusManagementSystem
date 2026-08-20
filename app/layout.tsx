@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { NavBar } from "@/components/NavBar";
+import './globals.css';
+
+import type { Metadata } from 'next';
+
+import { NavBar } from '@/components/NavBar';
 
 export const metadata: Metadata = {
-  title: "Al Noor Travels | Bus Management",
+  title: "Al Noor Travels | Bus Service",
   description:
-    "Al Noor Travels - manage your buses, drivers, and city-to-city routes.",
+    "Al Noor Travels - we provide you the best services in the city",
   icons: {
     icon: [
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -30,7 +32,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-400">
-            Al Noor Travels &middot; Bus Management System
+            Al Noor Travels &middot; Bus Service
           </footer>
         </div>
       </body>
