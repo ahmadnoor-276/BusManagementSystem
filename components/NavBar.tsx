@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const links = [
-  { href: "/", label: "Buses" },
+  { href: "/", label: "Bus Schedules" },
+  { href: "/buses", label: "Buses" },
   { href: "/routes", label: "Routes" },
-  { href: "/schedules", label: "Schedules" },
+  { href: "/schedules", label: "Manage Times" },
 ];
 
 const PHONE_NUMBERS = "0307-4527954, 0306-4621289, 0300-8874559";
