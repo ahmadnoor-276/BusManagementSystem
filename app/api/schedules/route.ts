@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const schedules = await prisma.schedule.findMany({
     where: routeId ? { bus: { routeId } } : undefined,
     orderBy: { departureTime: "asc" },
-    include: { bus: { include: { route: true } } },
+    include: { bus: { include: { route: true, driver: true } } },
   });
   return NextResponse.json(schedules);
 }
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   try {
     const schedule = await prisma.schedule.create({
       data: { busId, departureTime },
-      include: { bus: { include: { route: true } } },
+      include: { bus: { include: { route: true, driver: true } } },
     });
     return NextResponse.json(schedule, { status: 201 });
   } catch (error) {

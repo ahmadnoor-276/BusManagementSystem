@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Bus, Route } from "@/lib/types";
+import Link from "next/link";
+import type { Bus, Driver, Route } from "@/lib/types";
 import { Alert, EmptyState, PageHeader, Spinner } from "@/components/ui";
 
 const NEW_ROUTE = "__new__";
@@ -9,13 +10,14 @@ const NEW_ROUTE = "__new__";
 export default function BusesPage() {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [busNumber, setBusNumber] = useState("");
-  const [driverName, setDriverName] = useState("");
+  const [driverId, setDriverId] = useState("");
   const [routeId, setRouteId] = useState("");
   const [fromCity, setFromCity] = useState("");
   const [toCity, setToCity] = useState("");
@@ -23,12 +25,14 @@ export default function BusesPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [busRes, routeRes] = await Promise.all([
+      const [busRes, routeRes, driverRes] = await Promise.all([
         fetch("/api/buses"),
         fetch("/api/routes"),
+        fetch("/api/drivers"),
       ]);
       setBuses(await busRes.json());
       setRoutes(await routeRes.json());
+      setDrivers(await driverRes.json());
     } catch {
       setError("Could not load data. Please refresh.");
     } finally {
@@ -48,7 +52,7 @@ export default function BusesPage() {
 
     const payload: Record<string, unknown> = {
       busNumber,
-      driverName,
+      driverId,
     };
     if (routeId === NEW_ROUTE) {
       payload.newRoute = { fromCity, toCity };
@@ -69,7 +73,7 @@ export default function BusesPage() {
       }
       setSuccess(`Bus "${data.busNumber}" added.`);
       setBusNumber("");
-      setDriverName("");
+      setDriverId("");
       setRouteId("");
       setFromCity("");
       setToCity("");
@@ -125,14 +129,37 @@ export default function BusesPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
-              Driver name
+              Driver
             </label>
-            <input
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              placeholder="e.g. Ahmed Ali"
+            <select
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value)}
               className={inputClass}
-            />
+              disabled={drivers.length === 0}
+            >
+              <option value="">
+                {drivers.length === 0
+                  ? "No drivers added yet"
+                  : "Select a driver..."}
+              </option>
+              {drivers.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} ({d.contact})
+                </option>
+              ))}
+            </select>
+            {drivers.length === 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                Add drivers on the{" "}
+                <Link
+                  href="/drivers"
+                  className="font-medium text-brand-600 underline"
+                >
+                  Drivers
+                </Link>{" "}
+                page first.
+              </p>
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -221,7 +248,20 @@ export default function BusesPage() {
                   <td className="px-4 py-3 font-medium text-slate-900">
                     {bus.busNumber}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{bus.driverName}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {bus.driver ? (
+                      <div>
+                        <span className="font-medium text-slate-800">
+                          {bus.driver.name}
+                        </span>
+                        <span className="block text-xs text-slate-400">
+                          {bus.driver.contact}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">Unassigned</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
                       {bus.route.fromCity} → {bus.route.toCity}

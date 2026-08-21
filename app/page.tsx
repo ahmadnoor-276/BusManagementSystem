@@ -143,7 +143,7 @@ export default function HomePage() {
                     {s.bus.busNumber}
                   </p>
                   <p className="truncate text-sm text-slate-500">
-                    Driver: {s.bus.driverName}
+                    Driver: {s.bus.driver?.name ?? "TBA"}
                   </p>
                 </div>
               </div>

@@ -5,6 +5,8 @@ A full-stack web app to manage a bus service:
 - **Bus Schedules** (public) — anyone can pick a route and see scheduled bus
   departures, earliest first.
 - **Buses** (admin) — register each bus with its bus number, driver, and route.
+- **Drivers** (admin) — store driver info (name, gender, age, contact, address);
+  drivers are selectable when adding a bus.
 - **Routes** (admin) — define city-to-city routes (e.g. `Nankana → Lahore`).
 - **Manage Times** (admin) — set departure times for buses on their routes.
 
@@ -92,7 +94,7 @@ lib/prisma.ts                # Prisma client singleton
 lib/session.ts               # JWT sign/verify (edge-safe)
 lib/auth.ts                  # bcrypt + session helpers (node)
 middleware.ts                # route guard for admin pages
-prisma/schema.prisma         # data model (User, Route, Bus, Schedule)
+prisma/schema.prisma         # data model (User, Driver, Route, Bus, Schedule)
 prisma/seed.js               # creates/updates the admin account
 ```
 
@@ -106,9 +108,12 @@ prisma/seed.js               # creates/updates the admin account
 | GET    | `/api/routes`        | public | List routes (with bus counts)        |
 | POST   | `/api/routes`        | admin  | Create a route `{fromCity, toCity}`  |
 | DELETE | `/api/routes/:id`    | admin  | Delete a route (and its buses)       |
-| GET    | `/api/buses`         | admin  | List buses (with their route)        |
-| POST   | `/api/buses`         | admin  | Create a bus                         |
+| GET    | `/api/buses`         | admin  | List buses (with route + driver)     |
+| POST   | `/api/buses`         | admin  | Create a bus `{busNumber, driverId}` |
 | DELETE | `/api/buses/:id`     | admin  | Delete a bus                         |
+| GET    | `/api/drivers`       | admin  | List drivers (with bus counts)       |
+| POST   | `/api/drivers`       | admin  | Create a driver                      |
+| DELETE | `/api/drivers/:id`   | admin  | Delete a driver (unassigns buses)    |
 | GET    | `/api/schedules`     | public | List schedules (asc; `?routeId=`)    |
 | POST   | `/api/schedules`     | admin  | Create a schedule `{busId, time}`    |
 | DELETE | `/api/schedules/:id` | admin  | Delete a schedule                    |

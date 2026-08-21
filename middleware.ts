@@ -5,7 +5,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 // navigation; the API route handlers independently re-check the session
 // (defense in depth) so protection never relies on the client or middleware
 // alone.
-const PROTECTED_PREFIXES = ["/buses", "/routes", "/schedules"];
+const PROTECTED_PREFIXES = ["/buses", "/drivers", "/routes", "/schedules"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,5 +28,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/buses/:path*", "/routes/:path*", "/schedules/:path*"],
+  matcher: [
+    "/buses/:path*",
+    "/drivers/:path*",
+    "/routes/:path*",
+    "/schedules/:path*",
+  ],
 };

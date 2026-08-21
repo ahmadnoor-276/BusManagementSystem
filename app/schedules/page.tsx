@@ -245,7 +245,7 @@ export default function SchedulesPage() {
                     {s.bus.busNumber}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {s.bus.driverName}
+                    {s.bus.driver?.name ?? "TBA"}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">

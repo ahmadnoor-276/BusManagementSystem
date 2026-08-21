@@ -9,7 +9,7 @@ export async function GET() {
 
   const buses = await prisma.bus.findMany({
     orderBy: { createdAt: "desc" },
-    include: { route: true },
+    include: { route: true, driver: true },
   });
   return NextResponse.json(buses);
 }
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
   let body: {
     busNumber?: unknown;
-    driverName?: unknown;
+    driverId?: unknown;
     routeId?: unknown;
     newRoute?: { fromCity?: unknown; toCity?: unknown };
   };
@@ -32,13 +32,27 @@ export async function POST(request: Request) {
 
   const busNumber =
     typeof body.busNumber === "string" ? body.busNumber.trim() : "";
-  const driverName =
-    typeof body.driverName === "string" ? body.driverName.trim() : "";
+  const driverId =
+    typeof body.driverId === "string" ? body.driverId.trim() : "";
   let routeId = typeof body.routeId === "string" ? body.routeId.trim() : "";
 
-  if (!busNumber || !driverName) {
+  if (!busNumber) {
     return NextResponse.json(
-      { error: "Bus number and driver name are required." },
+      { error: "Bus number is required." },
+      { status: 400 }
+    );
+  }
+  if (!driverId) {
+    return NextResponse.json(
+      { error: "Please select a driver for this bus." },
+      { status: 400 }
+    );
+  }
+
+  const driver = await prisma.driver.findUnique({ where: { id: driverId } });
+  if (!driver) {
+    return NextResponse.json(
+      { error: "Selected driver does not exist." },
       { status: 400 }
     );
   }
@@ -92,8 +106,8 @@ export async function POST(request: Request) {
 
   try {
     const bus = await prisma.bus.create({
-      data: { busNumber, driverName, routeId },
-      include: { route: true },
+      data: { busNumber, driverId, routeId },
+      include: { route: true, driver: true },
     });
     return NextResponse.json(bus, { status: 201 });
   } catch (error) {

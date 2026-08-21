@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import Image from 'next/image';
+import Link from 'next/link';
+import {
+  usePathname,
+  useRouter,
+} from 'next/navigation';
 
 const publicLinks = [{ href: "/", label: "Bus Schedules" }];
 
 const adminLinks = [
   { href: "/buses", label: "Buses" },
+  { href: "/drivers", label: "Drivers" },
   { href: "/routes", label: "Routes" },
   { href: "/schedules", label: "Manage Times" },
 ];
 
 const PHONE_NUMBERS = "0307-4527954, 0306-4621289, 0300-8874559";
-const HELPLINE_TEL = "042111007008";
 const ANNOUNCEMENT = "Al Noor Travels we provide you the best services in the city";
 
 type AuthUser = { email: string; role: string } | null;
@@ -149,14 +156,6 @@ export function NavBar() {
                 </Link>
               );
             })}
-
-            <a
-              href={`tel:${HELPLINE_TEL}`}
-              aria-label="Helpline"
-              className="ml-1 grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand-700 transition hover:bg-brand-100"
-            >
-              <HeadsetIcon className="h-5 w-5" />
-            </a>
           </nav>
         </div>
       </div>

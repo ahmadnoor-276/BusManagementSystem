@@ -6,12 +6,23 @@ export type Route = {
   _count?: { buses: number };
 };
 
+export type Driver = {
+  id: string;
+  name: string;
+  gender: string;
+  age: number;
+  contact: string;
+  address: string;
+  createdAt: string;
+  _count?: { buses: number };
+};
+
 export type Bus = {
   id: string;
   busNumber: string;
-  driverName: string;
   createdAt: string;
   route: Route;
+  driver: Driver | null;
 };
 
 export type Schedule = {
