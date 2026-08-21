@@ -1,8 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Bus, Route, Schedule } from "@/lib/types";
-import { Alert, EmptyState, PageHeader, Spinner } from "@/components/ui";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+
+import {
+  Alert,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from '@/components/ui';
+import type {
+  Bus,
+  Route,
+  Schedule,
+} from '@/lib/types';
 
 function formatTime(hhmm: string) {
   const [hStr, mStr] = hhmm.split(":");
@@ -23,9 +40,26 @@ export default function SchedulesPage() {
 
   const [filterRouteId, setFilterRouteId] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formRouteId, setFormRouteId] = useState("");
   const [busId, setBusId] = useState("");
   const [departureTime, setDepartureTime] = useState("");
+
+  function resetForm() {
+    setEditingId(null);
+    setBusId("");
+    setDepartureTime("");
+  }
+
+  function startEdit(schedule: Schedule) {
+    setError("");
+    setSuccess("");
+    setEditingId(schedule.id);
+    setFormRouteId(schedule.bus.route.id);
+    setBusId(schedule.bus.id);
+    setDepartureTime(schedule.departureTime);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   const loadSchedules = useCallback(async (routeId: string) => {
     const url = routeId
@@ -65,21 +99,23 @@ export default function SchedulesPage() {
     setSuccess("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ busId, departureTime }),
-      });
+      const res = await fetch(
+        editingId ? `/api/schedules/${editingId}` : "/api/schedules",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ busId, departureTime }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
       setSuccess(
-        `Scheduled bus "${data.bus.busNumber}" at ${formatTime(data.departureTime)}.`
+        `${editingId ? "Updated" : "Scheduled"} bus "${data.bus.busNumber}" at ${formatTime(data.departureTime)}.`
       );
-      setBusId("");
-      setDepartureTime("");
+      resetForm();
       await loadSchedules(filterRouteId);
     } catch {
       setError("Network error. Please try again.");
@@ -179,14 +215,27 @@ export default function SchedulesPage() {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
             disabled={submitting}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Adding..." : "Add schedule"}
+            {submitting
+              ? "Saving..."
+              : editingId
+                ? "Update schedule"
+                : "Add schedule"}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div className="mt-3 space-y-2">
@@ -253,12 +302,11 @@ export default function SchedulesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    <EditButton onClick={() => startEdit(s)} />
+                    <DeleteButton
+                      onConfirm={() => handleDelete(s.id)}
+                      confirmMessage={`Delete ${formatTime(s.departureTime)} departure?`}
+                    />
                   </td>
                 </tr>
               ))}

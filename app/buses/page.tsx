@@ -1,9 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import type { Bus, Driver, Route } from "@/lib/types";
-import { Alert, EmptyState, PageHeader, Spinner } from "@/components/ui";
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import Link from 'next/link';
+
+import {
+  Alert,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from '@/components/ui';
+import type {
+  Bus,
+  Driver,
+  Route,
+} from '@/lib/types';
 
 const NEW_ROUTE = "__new__";
 
@@ -16,11 +32,33 @@ export default function BusesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [busNumber, setBusNumber] = useState("");
   const [driverId, setDriverId] = useState("");
   const [routeId, setRouteId] = useState("");
   const [fromCity, setFromCity] = useState("");
   const [toCity, setToCity] = useState("");
+
+  function resetForm() {
+    setEditingId(null);
+    setBusNumber("");
+    setDriverId("");
+    setRouteId("");
+    setFromCity("");
+    setToCity("");
+  }
+
+  function startEdit(bus: Bus) {
+    setError("");
+    setSuccess("");
+    setEditingId(bus.id);
+    setBusNumber(bus.busNumber);
+    setDriverId(bus.driver?.id ?? "");
+    setRouteId(bus.route.id);
+    setFromCity("");
+    setToCity("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function loadData() {
     setLoading(true);
@@ -61,17 +99,21 @@ export default function BusesPage() {
     }
 
     try {
-      const res = await fetch("/api/buses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        editingId ? `/api/buses/${editingId}` : "/api/buses",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
-      setSuccess(`Bus "${data.busNumber}" added.`);
+      setSuccess(`Bus "${data.busNumber}" ${editingId ? "updated" : "added"}.`);
+      setEditingId(null);
       setBusNumber("");
       setDriverId("");
       setRouteId("");
@@ -176,7 +218,9 @@ export default function BusesPage() {
                   {r.fromCity} → {r.toCity}
                 </option>
               ))}
-              <option value={NEW_ROUTE}>+ Add a new route</option>
+              {!editingId && (
+                <option value={NEW_ROUTE}>+ Add a new route</option>
+              )}
             </select>
           </div>
 
@@ -214,8 +258,17 @@ export default function BusesPage() {
             disabled={submitting}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Adding..." : "Add bus"}
+            {submitting ? "Saving..." : editingId ? "Update bus" : "Add bus"}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div className="mt-3 space-y-2">
@@ -268,12 +321,11 @@ export default function BusesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(bus.id)}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    <EditButton onClick={() => startEdit(bus)} />
+                    <DeleteButton
+                      onConfirm={() => handleDelete(bus.id)}
+                      confirmMessage={`Delete bus ${bus.busNumber}?`}
+                    />
                   </td>
                 </tr>
               ))}

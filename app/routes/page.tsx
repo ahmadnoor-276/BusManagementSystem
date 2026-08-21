@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Route } from "@/lib/types";
-import { Alert, EmptyState, PageHeader, Spinner } from "@/components/ui";
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  Alert,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from '@/components/ui';
+import type { Route } from '@/lib/types';
 
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -11,8 +22,24 @@ export default function RoutesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [fromCity, setFromCity] = useState("");
   const [toCity, setToCity] = useState("");
+
+  function resetForm() {
+    setEditingId(null);
+    setFromCity("");
+    setToCity("");
+  }
+
+  function startEdit(route: Route) {
+    setError("");
+    setSuccess("");
+    setEditingId(route.id);
+    setFromCity(route.fromCity);
+    setToCity(route.toCity);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function loadRoutes() {
     setLoading(true);
@@ -36,19 +63,23 @@ export default function RoutesPage() {
     setSuccess("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/routes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromCity, toCity }),
-      });
+      const res = await fetch(
+        editingId ? `/api/routes/${editingId}` : "/api/routes",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromCity, toCity }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
-      setSuccess(`Route "${data.fromCity} → ${data.toCity}" added.`);
-      setFromCity("");
-      setToCity("");
+      setSuccess(
+        `Route "${data.fromCity} → ${data.toCity}" ${editingId ? "updated" : "added"}.`
+      );
+      resetForm();
       await loadRoutes();
     } catch {
       setError("Network error. Please try again.");
@@ -57,23 +88,17 @@ export default function RoutesPage() {
     }
   }
 
-  async function handleDelete(route: Route) {
+  async function handleDelete(id: string) {
     setError("");
     setSuccess("");
-    if (route._count && route._count.buses > 0) {
-      const ok = window.confirm(
-        `This route has ${route._count.buses} bus(es) assigned. Deleting it will also remove those buses. Continue?`
-      );
-      if (!ok) return;
-    }
     try {
-      const res = await fetch(`/api/routes/${route.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/routes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
         setError(data.error ?? "Failed to delete route.");
         return;
       }
-      setRoutes((prev) => prev.filter((r) => r.id !== route.id));
+      setRoutes((prev) => prev.filter((r) => r.id !== id));
     } catch {
       setError("Network error. Please try again.");
     }
@@ -118,14 +143,27 @@ export default function RoutesPage() {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
             disabled={submitting}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Adding..." : "Add route"}
+            {submitting
+              ? "Saving..."
+              : editingId
+                ? "Update route"
+                : "Add route"}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div className="mt-3 space-y-2">
@@ -159,12 +197,17 @@ export default function RoutesPage() {
                   {(route._count?.buses ?? 0) === 1 ? "" : "es"} assigned
                 </p>
               </div>
-              <button
-                onClick={() => handleDelete(route)}
-                className="rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
-              >
-                Delete
-              </button>
+              <div className="flex items-center">
+                <EditButton onClick={() => startEdit(route)} />
+                <DeleteButton
+                  onConfirm={() => handleDelete(route.id)}
+                  confirmMessage={
+                    route._count && route._count.buses > 0
+                      ? `Delete? ${route._count.buses} bus(es) will also be removed.`
+                      : "Delete route?"
+                  }
+                />
+              </div>
             </div>
           ))}
         </div>

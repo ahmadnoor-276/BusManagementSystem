@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from "react";
 import type { Driver } from "@/lib/types";
-import { Alert, EmptyState, PageHeader, Spinner } from "@/components/ui";
+import {
+  Alert,
+  DeleteButton,
+  EditButton,
+  EmptyState,
+  PageHeader,
+  Spinner,
+} from "@/components/ui";
 
 const GENDERS = ["Male", "Female", "Other"];
+
+// Keep only digits (max 11) and render as "0312-1234567".
+function formatContact(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  return digits.length <= 4 ? digits : `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
 
 export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -13,11 +26,33 @@ export default function DriversPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
   const [contact, setContact] = useState("");
   const [address, setAddress] = useState("");
+
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setGender("");
+    setAge("");
+    setContact("");
+    setAddress("");
+  }
+
+  function startEdit(driver: Driver) {
+    setError("");
+    setSuccess("");
+    setEditingId(driver.id);
+    setName(driver.name);
+    setGender(driver.gender);
+    setAge(String(driver.age));
+    setContact(driver.contact);
+    setAddress(driver.address);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function loadDrivers() {
     setLoading(true);
@@ -39,24 +74,29 @@ export default function DriversPage() {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    if (contact.replace(/\D/g, "").length !== 11) {
+      setError("Contact must be 11 digits, e.g. 0312-1234567.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await fetch("/api/drivers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, gender, age, contact, address }),
-      });
+      const res = await fetch(
+        editingId ? `/api/drivers/${editingId}` : "/api/drivers",
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, gender, age, contact, address }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
         return;
       }
-      setSuccess(`Driver "${data.name}" added.`);
-      setName("");
-      setGender("");
-      setAge("");
-      setContact("");
-      setAddress("");
+      setSuccess(`Driver "${data.name}" ${editingId ? "updated" : "added"}.`);
+      resetForm();
       await loadDrivers();
     } catch {
       setError("Network error. Please try again.");
@@ -65,17 +105,11 @@ export default function DriversPage() {
     }
   }
 
-  async function handleDelete(driver: Driver) {
+  async function handleDelete(id: string) {
     setError("");
     setSuccess("");
-    if (driver._count && driver._count.buses > 0) {
-      const ok = window.confirm(
-        `${driver.name} is assigned to ${driver._count.buses} bus(es). Deleting will unassign them from those buses. Continue?`
-      );
-      if (!ok) return;
-    }
     try {
-      const res = await fetch(`/api/drivers/${driver.id}`, {
+      const res = await fetch(`/api/drivers/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -83,7 +117,7 @@ export default function DriversPage() {
         setError(data.error ?? "Failed to delete driver.");
         return;
       }
-      setDrivers((prev) => prev.filter((d) => d.id !== driver.id));
+      setDrivers((prev) => prev.filter((d) => d.id !== id));
     } catch {
       setError("Network error. Please try again.");
     }
@@ -151,11 +185,15 @@ export default function DriversPage() {
               Contact
             </label>
             <input
+              inputMode="numeric"
               value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="e.g. 0300-1234567"
+              onChange={(e) => setContact(formatContact(e.target.value))}
+              placeholder="e.g. 0312-1234567"
               className={inputClass}
             />
+            <p className="mt-1 text-xs text-slate-500">
+              11 digits, e.g. 0312-1234567
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -170,14 +208,27 @@ export default function DriversPage() {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex items-center gap-3">
           <button
             type="submit"
             disabled={submitting}
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {submitting ? "Adding..." : "Add driver"}
+            {submitting
+              ? "Saving..."
+              : editingId
+                ? "Update driver"
+                : "Add driver"}
           </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+          )}
         </div>
 
         <div className="mt-3 space-y-2">
@@ -217,12 +268,15 @@ export default function DriversPage() {
                   <td className="px-4 py-3 text-slate-600">{driver.contact}</td>
                   <td className="px-4 py-3 text-slate-600">{driver.address}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(driver)}
-                      className="rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    <EditButton onClick={() => startEdit(driver)} />
+                    <DeleteButton
+                      onConfirm={() => handleDelete(driver.id)}
+                      confirmMessage={
+                        driver._count && driver._count.buses > 0
+                          ? `Delete? ${driver._count.buses} bus(es) will be unassigned.`
+                          : `Delete ${driver.name}?`
+                      }
+                    />
                   </td>
                 </tr>
               ))}

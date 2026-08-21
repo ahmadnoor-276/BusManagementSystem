@@ -34,8 +34,17 @@ export async function POST(request: Request) {
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const gender = typeof body.gender === "string" ? body.gender.trim() : "";
-  const contact = typeof body.contact === "string" ? body.contact.trim() : "";
+  const rawContact =
+    typeof body.contact === "string" ? body.contact.trim() : "";
   const address = typeof body.address === "string" ? body.address.trim() : "";
+
+  // Accept the number with or without a dash/spaces, but require exactly
+  // 11 digits and store it in the canonical "0312-1234567" format.
+  const contactDigits = rawContact.replace(/\D/g, "");
+  const contact =
+    contactDigits.length === 11
+      ? `${contactDigits.slice(0, 4)}-${contactDigits.slice(4)}`
+      : "";
   const age =
     typeof body.age === "number"
       ? body.age
@@ -43,9 +52,15 @@ export async function POST(request: Request) {
         ? Number(body.age)
         : NaN;
 
-  if (!name || !gender || !contact || !address) {
+  if (!name || !gender || !rawContact || !address) {
     return NextResponse.json(
       { error: "Name, gender, contact and address are required." },
+      { status: 400 }
+    );
+  }
+  if (!contact) {
+    return NextResponse.json(
+      { error: "Contact must be 11 digits, e.g. 0312-1234567." },
       { status: 400 }
     );
   }
